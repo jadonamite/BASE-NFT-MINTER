@@ -10,11 +10,11 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * @dev Simple NFT minting contract with mint fee collection
  * @notice Users can mint NFTs by uploading images and paying a small fee
  */
- contract BaseMinter is ERC721URIStorage, Ownable, ReentrancyGuard {
+contract BaseMinter is ERC721URIStorage, Ownable, ReentrancyGuard {
     
     // State variables
     uint256 private _tokenIdCounter;
-    uint256 public constant MINT_FEE = 0.0015 ether; // ~$6 at current ETH prices
+    uint256 public constant MINT_FEE = 0.0000175 ether; // ~$0.05 at current ETH prices
     uint256 public totalFeesCollected;
     
     // Mappings
@@ -79,6 +79,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
         
         return newTokenId;
     }
+    
     /**
      * @notice Batch mint multiple NFTs (gas efficient for power users)
      * @param tokenURIs Array of IPFS URIs
@@ -188,7 +189,6 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
         return recentTokenIds;
     }
     
-    
     /**
      * @notice Check if address has minted any NFTs
      */
@@ -201,6 +201,5 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
      */
     function getMintCount(address user) public view returns (uint256) {
         return _userTokens[user].length;
-    } 
-    
     }
+}
