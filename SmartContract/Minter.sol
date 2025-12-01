@@ -42,6 +42,43 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
         _tokenIdCounter = 0;
     }
     
+    /**
+     * @notice Mint a new NFT with custom metadata
+     * @param tokenURI The IPFS URI containing NFT metadata
+     * @return tokenId The ID of the newly minted NFT
+     */
+    function mintNFT(string memory tokenURI) 
+        public 
+        payable 
+        nonReentrant 
+        returns (uint256) 
+    {
+        require(msg.value >= MINT_FEE, "Insufficient mint fee");
+        require(bytes(tokenURI).length > 0, "Token URI cannot be empty");
+        
+        // Increment counter and mint
+        _tokenIdCounter++;
+        uint256 newTokenId = _tokenIdCounter;
+        
+        _safeMint(msg.sender, newTokenId);
+        _setTokenURI(newTokenId, tokenURI);
+        
+        // Track user tokens and minter
+        _userTokens[msg.sender].push(newTokenId);
+        _tokenMinter[newTokenId] = msg.sender;
+        
+        // Update total fees
+        totalFeesCollected += msg.value;
+        
+        emit NFTMinted(msg.sender, newTokenId, tokenURI, block.timestamp);
+        
+        // Refund excess payment
+        if (msg.value > MINT_FEE) {
+            payable(msg.sender).transfer(msg.value - MINT_FEE);
+        }
+        
+        return newTokenId;
+    }
     
     
     }
