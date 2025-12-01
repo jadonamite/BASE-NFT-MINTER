@@ -188,6 +188,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
         return recentTokenIds;
     }
     
+    
     /**
      * @notice Check if address has minted any NFTs
      */
@@ -200,6 +201,6 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
      */
     function getMintCount(address user) public view returns (uint256) {
         return _userTokens[user].length;
-    }
+    } 
     
     }
