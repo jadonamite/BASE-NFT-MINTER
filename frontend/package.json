@@ -16,7 +16,6 @@
     "@reown/appkit-adapter-wagmi": "^1.8.14",
     "@tanstack/react-query": "^5.90.11",
     "@walletconnect/ethereum-provider": "^2.21.10",
-    "ethers": "^6.13.0",
     "next": "16.0.6",
     "nft.storage": "^7.2.0",
     "porto": "^0.2.37",
