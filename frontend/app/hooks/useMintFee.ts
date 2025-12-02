@@ -1,7 +1,7 @@
 'use client';
 
 import { useReadContract } from 'wagmi';
-import { CONTRACT_ADDRESS, CONTRACT_ABI } from '@/lib/constants';
+import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../lib/constants';
 import { formatEther } from 'viem';
 
 /**
