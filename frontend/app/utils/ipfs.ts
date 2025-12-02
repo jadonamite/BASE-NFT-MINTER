@@ -1,7 +1,7 @@
 import { NFTStorage, File as NFTFile } from 'nft.storage';
 
 // Initialize NFT.Storage client
-const NFT_STORAGE_KEY = process.env.NFT_STORAGE_API_KEY;
+const NFT_STORAGE_KEY = process.env.NEXT_PUBLIC_NFT_STORAGE_API_KEY;
 
 if (!NFT_STORAGE_KEY) {
   throw new Error('NFT_STORAGE_API_KEY is not defined in environment variables');
