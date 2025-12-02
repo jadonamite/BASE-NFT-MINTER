@@ -1,7 +1,8 @@
 import { base } from 'wagmi/chains';
 
 // Contract Configuration
-export const CONTRACT_ADDRESS = '0x175357b6820C6d73CFBa870C662A24A9fB12eD6d' as const;
+export const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || 
+  '0x175357b6820C6d73CFBa870C662A24A9fB12eD6d') as `0x${string}`;
 
 // Network Configuration
 export const SUPPORTED_CHAINS = [base];

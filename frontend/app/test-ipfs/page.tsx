@@ -3,6 +3,12 @@
 import { useState } from 'react';
 import { uploadNFTMetadata } from '../utils/ipfs';
 
+console.log('🔑 Environment Check:');
+console.log('Reown ID:', process.env.NEXT_PUBLIC_REOWN_PROJECT_ID);
+console.log('NFT Storage:', process.env.NEXT_PUBLIC_NFT_STORAGE_API_KEY);
+console.log('Contract:', process.env.NEXT_PUBLIC_CONTRACT_ADDRESS);
+console.log('Network:', process.env.NEXT_PUBLIC_NETWORK);
+
 export default function TestIPFS() {
   const [status, setStatus] = useState('');
 
