@@ -24,7 +24,7 @@ export default function TestIPFS() {
         setStatus(`Error: ${error.message}`);
       }
     };
-
+console.log('Reown Project ID:', process.env.NEXT_PUBLIC_REOWN_PROJECT_ID);
     input.click();
   };
 
