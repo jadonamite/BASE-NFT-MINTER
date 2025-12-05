@@ -1,5 +1,4 @@
 .
-├── README.md
 ├── app
 │   ├── abis
 │   │   └── BaseMInter.json
@@ -12,8 +11,8 @@
 │   │   └── Web3Modal.tsx
 │   ├── globals.css
 │   ├── hooks
-│   │   ├── useMint.ts
 │   │   ├── useMintFee.ts
+│   │   ├── useMint.ts
 │   │   └── useNFTData.ts
 │   ├── layout.tsx
 │   ├── lib
@@ -24,12 +23,12 @@
 │   ├── types
 │   │   └── nft.ts
 │   └── utils
-│     └── ipfs.ts
-├──.env.local
-├── next-env.d.ts
+│       └── ipfs.ts
 ├── next.config.ts
+├── next-env.d.ts
 ├── package.json
 ├── postcss.config.mjs
+├── README.md
 ├── structure.md
 └── tsconfig.json
 
