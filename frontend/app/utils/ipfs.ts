@@ -1,109 +1,78 @@
-// Using NFT.Storage HTTP API directly (more reliable than SDK)
+import { PinataSDK } from 'pinata-web3';
 
-const NFT_STORAGE_KEY = process.env.NEXT_PUBLIC_NFT_STORAGE_API_KEY;
+// Initialize Pinata client
+const PINATA_JWT = process.env.NEXT_PUBLIC_PINATA_JWT;
 
-console.log('🔑 NFT Storage Key Check:', NFT_STORAGE_KEY ? 'Key exists ✅' : 'Key missing ❌');
-
-if (!NFT_STORAGE_KEY) {
-  throw new Error('NEXT_PUBLIC_NFT_STORAGE_API_KEY is not defined in environment variables');
+if (!PINATA_JWT) {
+  console.error('❌ PINATA_JWT is not defined in environment variables');
 }
 
+const pinata = new PinataSDK({
+  pinataJwt: PINATA_JWT,
+});
+
+console.log(' Pinata Key initialized:', PINATA_JWT ? 'Verified' : 'Failed');
+
 /**
- * Upload image to IPFS via NFT.Storage HTTP API
+ * Upload image file to IPFS via Pinata
  * @param file - The image file to upload
- * @returns IPFS URL (ipfs://Qm...)
+ * @returns IPFS CID (Qm...)
  */
 async function uploadImageToIPFS(file: File): Promise<string> {
   try {
-    console.log('📤 Starting image upload:', {
+    console.log(' Uploading image to Pinata:', {
       name: file.name,
       type: file.type,
-      size: file.size,
+      size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
     });
 
-    // Use NFT.Storage upload endpoint
-    const response = await fetch('https://api.nft.storage/upload', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${NFT_STORAGE_KEY}`,
-      },
-      body: file,
-    });
+    const upload = await pinata.upload.file(file);
+    
+    console.log('Passed: Image uploaded successfully');
+    console.log('📍 CID:', upload.IpfsHash);
 
-    console.log('📡 Upload response status:', response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Upload failed:', {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText,
-      });
-      
-      if (response.status === 401) {
-        throw new Error('Invalid API key. Please check NEXT_PUBLIC_NFT_STORAGE_API_KEY');
-      }
-      
-      throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    console.log('✅ Upload successful:', data);
-
-    const cid = data.value.cid;
-    return `ipfs://${cid}`;
+    return upload.IpfsHash;
     
   } catch (error: any) {
-    console.error('❌ IPFS upload error:', error);
+    console.error('❌ Image upload failed:', error);
+    
+    if (error.message?.includes('Invalid authentication')) {
+      throw new Error('Invalid Pinata API key. Check your .env.local file.');
+    }
+    
     throw new Error(`Failed to upload image: ${error.message}`);
   }
 }
 
 /**
- * Upload JSON metadata to IPFS
+ * Upload JSON metadata to IPFS via Pinata
+ * @param metadata - The metadata object
+ * @returns IPFS CID (Qm...)
  */
-async function uploadJSONToIPFS(jsonData: any): Promise<string> {
+async function uploadJSONToIPFS(metadata: any): Promise<string> {
   try {
-    console.log('📤 Uploading JSON metadata...');
+    console.log('📤 Uploading metadata JSON to Pinata...');
 
-    const blob = new Blob([JSON.stringify(jsonData)], { type: 'application/json' });
-    const file = new File([blob], 'metadata.json', { type: 'application/json' });
+    const upload = await pinata.upload.json(metadata);
+    
+    console.log('✅ Metadata uploaded successfully');
+    console.log('📍 CID:', upload.IpfsHash);
 
-    const response = await fetch('https://api.nft.storage/upload', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${NFT_STORAGE_KEY}`,
-      },
-      body: file,
-    });
-
-    console.log('📡 JSON upload response status:', response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ JSON upload failed:', errorText);
-      throw new Error(`JSON upload failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log('✅ JSON upload successful:', data);
-
-    const cid = data.value.cid;
-    return `ipfs://${cid}`;
+    return upload.IpfsHash;
     
   } catch (error: any) {
-    console.error('❌ JSON upload error:', error);
+    console.error('❌ Metadata upload failed:', error);
     throw new Error(`Failed to upload metadata: ${error.message}`);
   }
 }
 
 /**
- * Create and upload complete NFT metadata to IPFS
+ * Main function: Upload image + metadata to IPFS
  * @param file - The image file
  * @param name - NFT name
  * @param description - NFT description
- * @param minterAddress - Address of the minter (optional)
- * @returns Complete metadata IPFS URL (ipfs://Qm...)
+ * @param minterAddress - Optional minter address
+ * @returns Metadata IPFS URI (ipfs://Qm...)
  */
 export async function uploadNFTMetadata(
   file: File,
@@ -112,18 +81,19 @@ export async function uploadNFTMetadata(
   minterAddress?: string
 ): Promise<string> {
   try {
-    console.log('🚀 Starting NFT metadata upload...');
-    console.log('📝 Metadata:', { name, description, minterAddress });
+    console.log('🚀 Starting NFT upload process...');
+    console.log('📝 NFT Details:', { name, description });
 
-    // Step 1: Upload the image first
-    const imageUrl = await uploadImageToIPFS(file);
-    console.log('✅ Image uploaded:', imageUrl);
+    // Step 1: Upload image
+    const imageCID = await uploadImageToIPFS(file);
+    const imageURI = `ipfs://${imageCID}`;
+    console.log('✅ Image URI:', imageURI);
 
-    // Step 2: Create metadata object
+    // Step 2: Create metadata
     const metadata = {
       name,
       description,
-      image: imageUrl,
+      image: imageURI,
       external_url: typeof window !== 'undefined' ? window.location.origin : '',
       attributes: [
         {
@@ -141,36 +111,39 @@ export async function uploadNFTMetadata(
       ],
     };
 
-    console.log('📄 Metadata object created:', metadata);
+    console.log('📄 Metadata created:', metadata);
 
-    // Step 3: Upload metadata JSON
-    const metadataUrl = await uploadJSONToIPFS(metadata);
-    console.log('✅ Metadata uploaded:', metadataUrl);
-    console.log('🎉 Complete upload successful!');
+    // Step 3: Upload metadata
+    const metadataCID = await uploadJSONToIPFS(metadata);
+    const metadataURI = `ipfs://${metadataCID}`;
+    
+    console.log('✅ Metadata URI:', metadataURI);
+    console.log('🎉 Upload complete!');
 
-    return metadataUrl;
-
+    return metadataURI;
+    
   } catch (error: any) {
-    console.error('❌ NFT metadata upload failed:', error);
+    console.error('❌ NFT upload failed:', error);
     throw error;
   }
 }
 
 /**
- * Fetch and parse metadata from IPFS URL
- * @param tokenURI - IPFS URL (ipfs://Qm...)
- * @returns Parsed NFT metadata
+ * Fetch metadata from IPFS
+ * @param tokenURI - IPFS URI (ipfs://Qm...)
+ * @returns Parsed metadata object
  */
 export async function fetchNFTMetadata(tokenURI: string): Promise<any> {
   try {
-    const httpUrl = tokenURI.replace('ipfs://', 'https://nftstorage.link/ipfs/');
+    // Convert ipfs:// to https:// gateway
+    const httpUrl = tokenURI.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
     
     console.log('🔍 Fetching metadata from:', httpUrl);
     
     const response = await fetch(httpUrl);
     
     if (!response.ok) {
-      throw new Error(`Failed to fetch metadata: ${response.statusText}`);
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     
     const metadata = await response.json();
@@ -179,8 +152,8 @@ export async function fetchNFTMetadata(tokenURI: string): Promise<any> {
     return metadata;
     
   } catch (error: any) {
-    console.error('❌ Error fetching NFT metadata:', error);
-    throw new Error(`Failed to fetch NFT metadata: ${error.message}`);
+    console.error('❌ Failed to fetch metadata:', error);
+    throw new Error(`Failed to fetch metadata: ${error.message}`);
   }
 }
 
@@ -196,17 +169,37 @@ export function validateImageFile(file: File): boolean {
   console.log('🔍 Validating file:', {
     name: file.name,
     type: file.type,
-    size: file.size,
+    size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
   });
 
   if (!ALLOWED_TYPES.includes(file.type)) {
-    throw new Error('Invalid file type. Please upload JPG, PNG, GIF, or WebP.');
+    throw new Error('Invalid file type. Only JPG, PNG, GIF, and WebP are allowed.');
   }
 
   if (file.size > MAX_SIZE) {
-    throw new Error('File too large. Maximum size is 10MB.');
+    throw new Error(`File too large (${(file.size / 1024 / 1024).toFixed(2)} MB). Maximum size is 10 MB.`);
   }
 
   console.log('✅ File validation passed');
   return true;
+}
+
+/**
+ * Helper: Convert IPFS URI to HTTP gateway URL
+ * @param ipfsUrl - IPFS URI (ipfs://...)
+ * @returns HTTP gateway URL
+ */
+export function getIPFSGatewayUrl(ipfsUrl: string): string {
+  if (!ipfsUrl) return '';
+  
+  if (ipfsUrl.startsWith('ipfs://')) {
+    return ipfsUrl.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+  }
+  
+  if (ipfsUrl.startsWith('http://') || ipfsUrl.startsWith('https://')) {
+    return ipfsUrl;
+  }
+  
+  // If it's just a CID
+  return `https://gateway.pinata.cloud/ipfs/${ipfsUrl}`;
 }

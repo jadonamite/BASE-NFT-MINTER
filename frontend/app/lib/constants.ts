@@ -87,9 +87,28 @@ export const CONTRACT_ABI = [
 ] as const;
 
 // IPFS Gateway Configuration
-export const IPFS_GATEWAY = 'https://nftstorage.link/ipfs/';
+// export const IPFS_GATEWAY = 'https://nftstorage.link/ipfs/';
 
-// Helper function to convert ipfs:// URLs to https://
+// // Helper function to convert ipfs:// URLs to https://
+// export function getIPFSUrl(ipfsUrl: string): string {
+//   if (!ipfsUrl) return '';
+  
+//   if (ipfsUrl.startsWith('ipfs://')) {
+//     return ipfsUrl.replace('ipfs://', IPFS_GATEWAY);
+//   }
+  
+//   // If it's already an HTTP URL, return as-is
+//   if (ipfsUrl.startsWith('http://') || ipfsUrl.startsWith('https://')) {
+//     return ipfsUrl;
+//   }
+  
+//   // If it's just a hash, prepend the gateway
+//   return `${IPFS_GATEWAY}${ipfsUrl}`;
+// }
+
+export const IPFS_GATEWAY = 'https://gateway.pinata.cloud/ipfs/';
+
+// Helper to convert ipfs:// to https://
 export function getIPFSUrl(ipfsUrl: string): string {
   if (!ipfsUrl) return '';
   
@@ -97,15 +116,12 @@ export function getIPFSUrl(ipfsUrl: string): string {
     return ipfsUrl.replace('ipfs://', IPFS_GATEWAY);
   }
   
-  // If it's already an HTTP URL, return as-is
   if (ipfsUrl.startsWith('http://') || ipfsUrl.startsWith('https://')) {
     return ipfsUrl;
   }
   
-  // If it's just a hash, prepend the gateway
   return `${IPFS_GATEWAY}${ipfsUrl}`;
 }
-
 // BaseScan URL helper
 export function getBaseScanUrl(txHash: string): string {
   return `https://basescan.org/tx/${txHash}`;
