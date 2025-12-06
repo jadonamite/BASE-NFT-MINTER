@@ -4,12 +4,24 @@ import { headers } from "next/headers";
 import "./globals.css";
 import Web3ModalProvider from "./context/Web3Modal";
 import { Toaster } from 'react-hot-toast';
+import { Space_Grotesk, Inter } from 'next/font/google';
 
 export const metadata: Metadata = {
   title: "Mintly - Transform moments into memories on-chain",
   description: "Mint your images as NFTs on Base and Celo networks with Mintly",
 };
 
+const spaceGrotesk = Space_Grotesk({ 
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-heading'
+});
+
+const inter = Inter({ 
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-body'
+});
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -19,7 +31,7 @@ export default async function RootLayout({
   
   return (
     <html lang="en">
-      <body>
+      <body className={`${inter.variable} ${spaceGrotesk.variable}`}>
         <Web3ModalProvider cookies={cookies}>
           {children}
           

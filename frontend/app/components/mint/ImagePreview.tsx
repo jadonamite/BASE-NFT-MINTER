@@ -17,7 +17,7 @@ export default function ImagePreview({ file, onRemove }: ImagePreviewProps) {
   return (
     <div className="animate-fade-in">
       {/* Image Display */}
-      <div className="relative aspect-square rounded-xl overflow-hidden border-4 border-[#A6FFE7] shadow-lg">
+      <div className="relative w-full max-h-80 rounded-xl overflow-hidden border-4 border-[#A6FFE7] shadow-lg">
         <Image
           src={imageUrl}
           alt="Preview"
