@@ -1,132 +1,94 @@
-import { base } from 'wagmi/chains';
+import { base, celo } from 'wagmi/chains';
+import BaseMinterABI from '../abis/BaseMInter.json';
 
-// Contract Configuration
-export const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || 
-  '0x175357b6820C6d73CFBa870C662A24A9fB12eD6d') as `0x${string}`;
+export const SUPPORTED_CHAINS = {
+  base: {
+    id: 8453,
+    name: 'Base',
+    chain: base,
+    contractAddress: process.env.NEXT_PUBLIC_BASE_CONTRACT_ADDRESS || '0x175357b6820C6d73CFBa870C662A24A9fB12eD6d',
+    explorer: 'https://basescan.org',
+    currency: 'ETH',
+  },
+  celo: {
+    id: 42220,
+    name: 'Celo',
+    chain: celo,
+    contractAddress: process.env.NEXT_PUBLIC_CELO_CONTRACT_ADDRESS || '0x5924C31FcA7d4545C8A48563B8e9ebbe61e0dCA5',
+    explorer: 'https://celoscan.io',
+    currency: 'CELO',
+  },
+} as const;
 
-// Network Configuration
-export const SUPPORTED_CHAINS = [base];
-export const DEFAULT_CHAIN = base;
+export type SupportedChainId = keyof typeof SUPPORTED_CHAINS;
 
-// Contract ABI - Complete from your deployment
-export const CONTRACT_ABI = [
-  {
-    inputs: [{ internalType: 'string', name: 'tokenURI', type: 'string' }],
-    name: 'mintNFT',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-    stateMutability: 'payable',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'MINT_FEE',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [{ internalType: 'uint256', name: 'count', type: 'uint256' }],
-    name: 'getRecentMints',
-    outputs: [{ internalType: 'uint256[]', name: '', type: 'uint256[]' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [{ internalType: 'address', name: 'user', type: 'address' }],
-    name: 'getUserTokens',
-    outputs: [{ internalType: 'uint256[]', name: '', type: 'uint256[]' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
-    name: 'tokenURI',
-    outputs: [{ internalType: 'string', name: '', type: 'string' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
-    name: 'ownerOf',
-    outputs: [{ internalType: 'address', name: '', type: 'address' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
-    name: 'getTokenMinter',
-    outputs: [{ internalType: 'address', name: '', type: 'address' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'getTotalMinted',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [{ internalType: 'address', name: 'user', type: 'address' }],
-    name: 'getMintCount',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: 'address', name: 'minter', type: 'address' },
-      { indexed: true, internalType: 'uint256', name: 'tokenId', type: 'uint256' },
-      { indexed: false, internalType: 'string', name: 'tokenURI', type: 'string' },
-      { indexed: false, internalType: 'uint256', name: 'timestamp', type: 'uint256' },
-    ],
-    name: 'NFTMinted',
-    type: 'event',
-  },
-] as const;
+/**
+ * Get contract address for a specific chain
+ */
+export function getContractAddress(chainId: number): `0x${string}` {
+  const chain = Object.values(SUPPORTED_CHAINS).find(c => c.id === chainId);
+  return (chain?.contractAddress || SUPPORTED_CHAINS.base.contractAddress) as `0x${string}`;
+}
 
-// IPFS Gateway Configuration
-// export const IPFS_GATEWAY = 'https://nftstorage.link/ipfs/';
+/**
+ * Get chain config by chain ID
+ */
+export function getChainConfig(chainId: number) {
+  return Object.values(SUPPORTED_CHAINS).find(c => c.id === chainId) || SUPPORTED_CHAINS.base;
+}
 
-// // Helper function to convert ipfs:// URLs to https://
-// export function getIPFSUrl(ipfsUrl: string): string {
-//   if (!ipfsUrl) return '';
-  
-//   if (ipfsUrl.startsWith('ipfs://')) {
-//     return ipfsUrl.replace('ipfs://', IPFS_GATEWAY);
-//   }
-  
-//   // If it's already an HTTP URL, return as-is
-//   if (ipfsUrl.startsWith('http://') || ipfsUrl.startsWith('https://')) {
-//     return ipfsUrl;
-//   }
-  
-//   // If it's just a hash, prepend the gateway
-//   return `${IPFS_GATEWAY}${ipfsUrl}`;
-// }
+/**
+ * Get explorer URL for transaction
+ */
+export function getExplorerUrl(chainId: number, txHash: string): string {
+  const config = getChainConfig(chainId);
+  return `${config.explorer}/tx/${txHash}`;
+}
+
+/**
+ * Get explorer URL for token
+ */
+export function getTokenUrl(chainId: number, tokenId: number): string {
+  const config = getChainConfig(chainId);
+  const address = getContractAddress(chainId);
+  return `${config.explorer}/token/${address}?a=${tokenId}`;
+}
+
+// Change this line - remove .abi
+export const CONTRACT_ABI = BaseMinterABI;
+
+// Default to Base if no chain connected
+export const DEFAULT_CHAIN_ID = SUPPORTED_CHAINS.base.id;
+export const DEFAULT_CONTRACT_ADDRESS = SUPPORTED_CHAINS.base.contractAddress as `0x${string}`;
 
 export const IPFS_GATEWAY = 'https://gateway.pinata.cloud/ipfs/';
 
-// Helper to convert ipfs:// to https://
-export function getIPFSUrl(ipfsUrl: string): string {
-  if (!ipfsUrl) return '';
-  
-  if (ipfsUrl.startsWith('ipfs://')) {
-    return ipfsUrl.replace('ipfs://', IPFS_GATEWAY);
+/**
+ * Convert IPFS URI to HTTP gateway URL
+ */
+export function ipfsToHttp(uri: string): string {
+  if (uri.startsWith('ipfs://')) {
+    return uri.replace('ipfs://', IPFS_GATEWAY);
   }
-  
-  if (ipfsUrl.startsWith('http://') || ipfsUrl.startsWith('https://')) {
-    return ipfsUrl;
+  if (uri.startsWith('https://')) {
+    return uri;
   }
-  
-  return `${IPFS_GATEWAY}${ipfsUrl}`;
-}
-// BaseScan URL helper
-export function getBaseScanUrl(txHash: string): string {
-  return `https://basescan.org/tx/${txHash}`;
+  // Assume it's just the CID
+  return `${IPFS_GATEWAY}${uri}`;
 }
 
-export function getBaseScanTokenUrl(tokenId: number): string {
-  return `https://basescan.org/token/${CONTRACT_ADDRESS}?a=${tokenId}`;
-}
+export const APP_CONFIG = {
+  name: 'Mintly',
+  description: 'Transform moments into memories on-chain',
+  maxFileSize: 10 * 1024 * 1024, // 10MB
+  allowedFileTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
+  recentMintsCount: 10,
+} as const;
+
+export const THEME = {
+  primary: '#A6FFE7', // Teal accent
+  primaryDark: '#064E3B',
+  background: '#FAFAFA',
+  cardDark: '#1E293B',
+  border: '#E2E8F0',
+} as const;
