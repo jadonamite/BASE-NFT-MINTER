@@ -31,7 +31,7 @@ export default function MintForm() {
 
   // Validate file
   const validateFile = (file: File): boolean => {
-    if (!APP_CONFIG.allowedFileTypes.includes(file.type)) {
+    if (!APP_CONFIG.allowedFileTypes.includes(file.type as any)) {
       toast.error('Invalid file type. Please upload a JPG, PNG, GIF, or WebP image.');
       return false;
     }

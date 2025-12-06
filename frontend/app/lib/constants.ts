@@ -81,7 +81,7 @@ export const APP_CONFIG = {
   name: 'Mintly',
   description: 'Transform moments into memories on-chain',
   maxFileSize: 10 * 1024 * 1024, // 10MB
-  allowedFileTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
+  allowedFileTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'] as string[], // <-- Add "as string[]"
   recentMintsCount: 10,
 } as const;
 
