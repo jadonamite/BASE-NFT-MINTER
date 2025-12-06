@@ -6,6 +6,7 @@ import { useReadContract, useAccount } from 'wagmi';
 import { ChartBarIcon } from '@heroicons/react/24/outline';
 import { SUPPORTED_CHAINS, CONTRACT_ABI, getContractAddress } from '../lib/constants';
 import { formatEther } from 'viem';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 
 export default function StatsCounter() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -80,7 +81,7 @@ export default function StatsCounter() {
                 <p className="text-sm text-gray-400">Live on-chain data</p>
               </div>
             </div>
-            <span className="text-xs text-gray-500">Click to collapse</span>
+            <span className="text-xs text-gray-500"><XMarkIcon className="w-6 h-6 text-white group-hover:rotate-90 transition-transform duration-200" /></span>
           </div>
 
           {/* Combined Total */}

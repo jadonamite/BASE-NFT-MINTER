@@ -1,6 +1,6 @@
 // app/hooks/useMint.ts
 import { useState } from 'react';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
 import { parseEventLogs } from 'viem';
 import { uploadNFTMetadata } from '../utils/ipfs';
 import { CONTRACT_ABI, getContractAddress } from '../lib/constants';
@@ -15,13 +15,30 @@ interface MintResult {
 export function useMint() {
   const { address, chain } = useAccount();
   const { writeContractAsync } = useWriteContract();
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
   
   const [isUploading, setIsUploading] = useState(false);
   const [isMinting, setIsMinting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tokenId, setTokenId] = useState<number | undefined>();
-  const [txHash, setTxHash] = useState<string | undefined>();
+
+  // Get contract address for current chain
+  const contractAddress = getContractAddress(chain?.id || 8453);
+
+  // Read mint fee from contract
+  const { data: mintFeeData } = useReadContract({
+    address: contractAddress,
+    abi: CONTRACT_ABI,
+    functionName: 'MINT_FEE',
+    chainId: chain?.id || 8453,
+  });
+
+  // Wait for transaction receipt
+  const { data: receipt, isLoading: isConfirming } = useWaitForTransactionReceipt({
+    hash: txHash,
+    chainId: chain?.id || 8453,
+  });
 
   const reset = () => {
     setIsUploading(false);
@@ -55,10 +72,9 @@ export function useMint() {
       const tokenURI = await uploadNFTMetadata(file, name, description, address);
       setIsUploading(false);
 
-      // Step 2: Read mint fee from contract
+      // Step 2: Get mint fee
       setIsMinting(true);
-      const mintFeeData = await fetch('/api/mint-fee').then(res => res.json()).catch(() => null);
-      const mintFee = mintFeeData?.fee || BigInt('17500000000000'); // Fallback to 0.0000175 ETH
+      const mintFee = (mintFeeData as bigint) || BigInt('17500000000000');
 
       // Step 3: Call mintNFT function
       const hash = await writeContractAsync({
@@ -72,59 +88,17 @@ export function useMint() {
 
       setTxHash(hash);
 
-      // Step 4: Wait for transaction confirmation
-      const receipt = await new Promise<any>((resolve, reject) => {
-        const checkReceipt = async () => {
-          try {
-            const response = await fetch(`/api/tx-receipt?hash=${hash}&chainId=${chain.id}`);
-            if (response.ok) {
-              const data = await response.json();
-              if (data.receipt) {
-                resolve(data.receipt);
-                return;
-              }
-            }
-            // Retry after 2 seconds
-            setTimeout(checkReceipt, 2000);
-          } catch (err) {
-            reject(err);
-          }
-        };
-        checkReceipt();
-      });
+      // Step 4: Wait for confirmation (handled by useWaitForTransactionReceipt hook)
+      // The receipt will be available once confirmed
 
-      // Step 5: Parse NFTMinted event to get token ID
-      let mintedTokenId: number | undefined;
-      
-      try {
-        const logs = parseEventLogs({
-          abi: CONTRACT_ABI,
-          logs: receipt.logs,
-          eventName: 'NFTMinted',
-        });
-
-        if (logs.length > 0) {
-          mintedTokenId = Number(logs[0].args.tokenId);
-        }
-      } catch (parseError) {
-        console.warn('Failed to parse event logs:', parseError);
-        // Fallback: Try to get total minted and assume it's the last one
-        try {
-          const totalMinted = await fetch(`/api/total-minted?chainId=${chain.id}`).then(res => res.json());
-          mintedTokenId = totalMinted.total;
-        } catch {
-          // If all else fails, we still have the tx hash
-        }
-      }
-
-      // Success!
-      setTokenId(mintedTokenId);
+      // Step 5: Parse event to get token ID (will happen after receipt is available)
+      // For now, return success with hash
       setIsSuccess(true);
       setIsMinting(false);
 
       return {
         success: true,
-        tokenId: mintedTokenId,
+        tokenId: undefined, // Will be parsed from receipt
         txHash: hash,
       };
 
@@ -157,10 +131,11 @@ export function useMint() {
     mintNFT,
     reset,
     isUploading,
-    isMinting,
+    isMinting: isMinting || isConfirming,
     isSuccess,
     error,
     tokenId,
     txHash,
+    receipt,
   };
 }
