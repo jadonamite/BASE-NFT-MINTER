@@ -1,14 +1,13 @@
+// app/layout.tsx
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
 import { headers } from "next/headers";
+import "./globals.css";
 import Web3ModalProvider from "./context/Web3Modal";
-
-const inter = Inter({ subsets: ["latin"] });
+import { Toaster } from 'react-hot-toast';
 
 export const metadata: Metadata = {
-  title: "Base NFT Minter",
-  description: "Mint unique assets on the Base Network",
+  title: "Mintly - Transform moments into memories on-chain",
+  description: "Mint your images as NFTs on Base and Celo networks with Mintly",
 };
 
 export default async function RootLayout({
@@ -17,12 +16,51 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const cookies = (await headers()).get("cookie");
-
+  
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body>
         <Web3ModalProvider cookies={cookies}>
           {children}
+          
+          {/* Toast Notifications */}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#1E293B',
+                color: '#F8FAFC',
+                border: '1px solid #334155',
+                borderRadius: '0.75rem',
+                padding: '16px',
+              },
+              success: {
+                iconTheme: {
+                  primary: '#A6FFE7',
+                  secondary: '#064E3B',
+                },
+                style: {
+                  border: '1px solid #A6FFE7',
+                },
+              },
+              error: {
+                iconTheme: {
+                  primary: '#EF4444',
+                  secondary: '#FFFFFF',
+                },
+                style: {
+                  border: '1px solid #EF4444',
+                },
+              },
+              loading: {
+                iconTheme: {
+                  primary: '#A6FFE7',
+                  secondary: '#064E3B',
+                },
+              },
+            }}
+          />
         </Web3ModalProvider>
       </body>
     </html>
