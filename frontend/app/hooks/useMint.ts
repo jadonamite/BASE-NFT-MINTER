@@ -1,165 +1,166 @@
-'use client';
-
+// app/hooks/useMint.ts
 import { useState } from 'react';
-import { useWriteContract, useWaitForTransactionReceipt, useAccount, usePublicClient } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEventLogs } from 'viem';
-import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../lib/constants';
 import { uploadNFTMetadata } from '../utils/ipfs';
-import { useMintFee } from './useMintFee';
-import type { MintState } from '../types/nft';
+import { CONTRACT_ABI, getContractAddress } from '../lib/constants';
 
-/**
- * Main minting hook - handles entire mint flow
- * 1. Upload to IPFS
- * 2. Send blockchain transaction
- * 3. Wait for confirmation
- * 4. Extract token ID from event
- */
+interface MintResult {
+  success: boolean;
+  tokenId?: number;
+  txHash?: string;
+  error?: string;
+}
+
 export function useMint() {
-  const { address } = useAccount();
-  const publicClient = usePublicClient();
-  const { mintFeeWei } = useMintFee();
-  
-  const [mintState, setMintState] = useState<MintState>({
-    isUploading: false,
-    isMinting: false,
-    isSuccess: false,
-    error: null,
-  });
-
-  // Wagmi hooks for contract interaction
+  const { address, chain } = useAccount();
   const { writeContractAsync } = useWriteContract();
-  const { data: receipt, isLoading: isConfirming } = useWaitForTransactionReceipt({
-    hash: mintState.txHash as `0x${string}` | undefined,
-  });
+  
+  const [isUploading, setIsUploading] = useState(false);
+  const [isMinting, setIsMinting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [tokenId, setTokenId] = useState<number | undefined>();
+  const [txHash, setTxHash] = useState<string | undefined>();
 
-  /**
-   * Main mint function
-   */
-  const mintNFT = async (file: File, name: string, description: string) => {
+  const reset = () => {
+    setIsUploading(false);
+    setIsMinting(false);
+    setIsSuccess(false);
+    setError(null);
+    setTokenId(undefined);
+    setTxHash(undefined);
+  };
+
+  const mintNFT = async (
+    file: File,
+    name: string,
+    description: string
+  ): Promise<MintResult> => {
+    reset();
+
+    // Check wallet connection
+    if (!address || !chain) {
+      const errorMsg = 'Please connect your wallet';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+
+    // Get contract address for current chain
+    const contractAddress = getContractAddress(chain.id);
+
     try {
-      // Reset state
-      setMintState({
-        isUploading: true,
-        isMinting: false,
-        isSuccess: false,
-        error: null,
-      });
-
       // Step 1: Upload to IPFS
-      console.log('🚀 Starting IPFS upload...');
+      setIsUploading(true);
       const tokenURI = await uploadNFTMetadata(file, name, description, address);
-      console.log('✅ IPFS upload complete:', tokenURI);
+      setIsUploading(false);
 
-      // Step 2: Prepare for minting
-      setMintState(prev => ({
-        ...prev,
-        isUploading: false,
-        isMinting: true,
-      }));
+      // Step 2: Read mint fee from contract
+      setIsMinting(true);
+      const mintFeeData = await fetch('/api/mint-fee').then(res => res.json()).catch(() => null);
+      const mintFee = mintFeeData?.fee || BigInt('17500000000000'); // Fallback to 0.0000175 ETH
 
-      if (!mintFeeWei) {
-        throw new Error('Mint fee not loaded');
-      }
-
-      console.log('🔨 Sending mint transaction...');
-      
-      // Step 3: Send transaction
+      // Step 3: Call mintNFT function
       const hash = await writeContractAsync({
-        address: CONTRACT_ADDRESS,
+        address: contractAddress,
         abi: CONTRACT_ABI,
         functionName: 'mintNFT',
         args: [tokenURI],
-        value: mintFeeWei,
+        value: mintFee,
+        chainId: chain.id,
       });
 
-      console.log('📝 Transaction sent:', hash);
+      setTxHash(hash);
+
+      // Step 4: Wait for transaction confirmation
+      const receipt = await new Promise<any>((resolve, reject) => {
+        const checkReceipt = async () => {
+          try {
+            const response = await fetch(`/api/tx-receipt?hash=${hash}&chainId=${chain.id}`);
+            if (response.ok) {
+              const data = await response.json();
+              if (data.receipt) {
+                resolve(data.receipt);
+                return;
+              }
+            }
+            // Retry after 2 seconds
+            setTimeout(checkReceipt, 2000);
+          } catch (err) {
+            reject(err);
+          }
+        };
+        checkReceipt();
+      });
+
+      // Step 5: Parse NFTMinted event to get token ID
+      let mintedTokenId: number | undefined;
       
-      setMintState(prev => ({
-        ...prev,
-        txHash: hash,
-      }));
-
-      // Step 4: Wait for confirmation
-      console.log('⏳ Waiting for confirmation...');
-      const txReceipt = await publicClient?.waitForTransactionReceipt({ hash });
-
-      if (!txReceipt) {
-        throw new Error('Transaction receipt not found');
-      }
-
-      // Step 5: Extract token ID from event (PRIMARY METHOD)
-      let tokenId: number | undefined;
-
       try {
         const logs = parseEventLogs({
           abi: CONTRACT_ABI,
-          logs: txReceipt.logs,
+          logs: receipt.logs,
           eventName: 'NFTMinted',
         });
 
-        if (logs && logs.length > 0) {
-          tokenId = Number(logs[0].args.tokenId);
-          console.log('✅ Token ID from event:', tokenId);
+        if (logs.length > 0) {
+          mintedTokenId = Number(logs[0].args.tokenId);
         }
-      } catch (eventError) {
-        console.warn('⚠️ Could not parse event, will rely on success state:', eventError);
+      } catch (parseError) {
+        console.warn('Failed to parse event logs:', parseError);
+        // Fallback: Try to get total minted and assume it's the last one
+        try {
+          const totalMinted = await fetch(`/api/total-minted?chainId=${chain.id}`).then(res => res.json());
+          mintedTokenId = totalMinted.total;
+        } catch {
+          // If all else fails, we still have the tx hash
+        }
       }
 
-      // Step 6: Success!
-      setMintState({
-        isUploading: false,
-        isMinting: false,
-        isSuccess: true,
-        error: null,
-        tokenId,
+      // Success!
+      setTokenId(mintedTokenId);
+      setIsSuccess(true);
+      setIsMinting(false);
+
+      return {
+        success: true,
+        tokenId: mintedTokenId,
         txHash: hash,
-      });
+      };
 
-      console.log('🎉 Mint successful!');
-      return { success: true, tokenId, txHash: hash };
-
-    } catch (error: any) {
-      console.error('❌ Mint error:', error);
+    } catch (err: any) {
+      setIsMinting(false);
       
-      let errorMessage = 'Minting failed. Please try again.';
+      // Parse error message
+      let errorMessage = 'Minting failed';
       
-      // Handle specific errors
-      if (error.message?.includes('User rejected')) {
-        errorMessage = 'Transaction was rejected.';
-      } else if (error.message?.includes('insufficient funds')) {
-        errorMessage = 'Insufficient funds for mint fee + gas.';
-      } else if (error.message?.includes('IPFS')) {
+      if (err.message?.includes('User rejected')) {
+        errorMessage = 'Transaction was rejected';
+      } else if (err.message?.includes('insufficient funds')) {
+        errorMessage = 'Insufficient funds for mint fee + gas';
+      } else if (err.message?.includes('IPFS')) {
         errorMessage = 'Failed to upload to IPFS. Please try again.';
+      } else if (err.shortMessage) {
+        errorMessage = err.shortMessage;
       }
 
-      setMintState({
-        isUploading: false,
-        isMinting: false,
-        isSuccess: false,
+      setError(errorMessage);
+      
+      return {
+        success: false,
         error: errorMessage,
-      });
-
-      throw error;
+      };
     }
-  };
-
-  /**
-   * Reset mint state (for minting again)
-   */
-  const reset = () => {
-    setMintState({
-      isUploading: false,
-      isMinting: false,
-      isSuccess: false,
-      error: null,
-    });
   };
 
   return {
     mintNFT,
     reset,
-    ...mintState,
-    isConfirming, // Separate state for transaction confirmation
+    isUploading,
+    isMinting,
+    isSuccess,
+    error,
+    tokenId,
+    txHash,
   };
 }

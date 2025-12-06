@@ -1,28 +1,30 @@
-'use client';
-
-import { useReadContract } from 'wagmi';
-import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../lib/constants';
+// app/hooks/useMintFee.ts
+import { useReadContract, useAccount } from 'wagmi';
 import { formatEther } from 'viem';
+import { CONTRACT_ABI, getContractAddress, SUPPORTED_CHAINS } from '../lib/constants';
 
-/**
- * Hook to fetch the current mint fee from the contract
- * @returns Mint fee in ETH and wei, plus loading/error states
- */
 export function useMintFee() {
-  const { data: mintFeeWei, isError, isLoading, refetch } = useReadContract({
-    address: CONTRACT_ADDRESS,
+  const { chain } = useAccount();
+  
+  // Use current chain or default to Base
+  const chainId = chain?.id || SUPPORTED_CHAINS.base.id;
+  const contractAddress = getContractAddress(chainId);
+
+  const { data: mintFee, isLoading, isError } = useReadContract({
+    address: contractAddress,
     abi: CONTRACT_ABI,
     functionName: 'MINT_FEE',
+    chainId: chainId,
   });
 
-  // Convert wei to ETH for display
-  const mintFeeEth = mintFeeWei ? formatEther(mintFeeWei) : '0';
+  // Format the fee for display
+  const mintFeeWei = mintFee as bigint | undefined;
+  const mintFeeEth = mintFeeWei ? formatEther(mintFeeWei) : '0.0000175';
 
   return {
-    mintFeeWei, // Raw value in wei (for transactions)
-    mintFeeEth, // Formatted value in ETH (for display)
+    mintFeeWei,
+    mintFeeEth,
     isLoading,
     isError,
-    refetch,
   };
 }
