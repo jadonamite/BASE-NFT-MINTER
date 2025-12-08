@@ -67,8 +67,13 @@ contract BaseMinter is ERC721URIStorage, Ownable, ReentrancyGuard {
         _userTokens[msg.sender].push(newTokenId);
         _tokenMinter[newTokenId] = msg.sender;
         
-        // Update total fees
-        totalFeesCollected += msg.value;
+        // Update the total fees collected
+        // totalFeesCollected += msg.value;
+
+        // Note: We only add the fixed MINT_FEE to totalFeesCollected.
+        // The user may send more than MINT_FEE, but any excess is refunded below,
+        // so we should not add the full msg.value.
+        totalFeesCollected += MINT_FEE;
         
         emit NFTMinted(msg.sender, newTokenId, tokenURI, block.timestamp);
         
